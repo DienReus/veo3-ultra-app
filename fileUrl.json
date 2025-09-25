@@ -1,0 +1,4 @@
+{
+  "urlImageFX": "https://aisandbox-pa.googleapis.com/v1:runImageFx",
+  "urlGetSession": "https://labs.google/fx/api/auth/session"
+}

@@ -1,0 +1,115 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+  <style>
+    body { font-family: sans-serif; padding: 15px; }
+    input { width: 80%; padding: 8px }
+    button { padding: 8px 16px; }
+    #errorMessage { color: red; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Đăng nhập</h2>
+  <input id="username" placeholder="Username" type="text">
+  <input id="password" placeholder="Password" type="password">
+  <button id="loginBtn">Login</button>
+  <div id="errorMessage"></div>
+
+  <script>
+const usernameEl = document.getElementById("username");
+const passwordEl = document.getElementById("password");
+const errorEl = document.getElementById("errorMessage");
+const loginBtn = document.getElementById("loginBtn");
+
+async function login() {
+  const username = usernameEl.value;
+  const password = passwordEl.value;
+
+  const result = await window.electronAPI.login({ username, password });
+
+  if (!result.success) {
+    errorEl.innerText = result.message;
+    passwordEl.value = "";
+    setTimeout(() => passwordEl.focus(), 10);
+  } else {
+    console.log("Login thành công:", result.user.username);
+  }
+}
+
+loginBtn.addEventListener("click", login);
+[usernameEl, passwordEl].forEach(el => {
+  el.addEventListener("keypress", e => {
+    if (e.key === "Enter") login();
+  });
+});
+window.onload = () => usernameEl.focus();
+</script>
+</body>
+</html> -->
+
+
+<!-- <!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+  <style>
+    body { font-family: sans-serif; padding: 15px; }
+    input { width: 80%; padding: 8px; margin-bottom: 10px; display: block; }
+    button { padding: 8px 16px; }
+    #errorMessage { color: red; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Đăng nhập</h2>
+  <input id="username" placeholder="Username" type="text">
+  <input id="password" placeholder="Password" type="password">
+  <button id="loginBtn">Login</button>
+  <div id="errorMessage"></div>
+
+  <script>
+    const usernameEl = document.getElementById("username");
+    const passwordEl = document.getElementById("password");
+    const errorEl = document.getElementById("errorMessage");
+    const loginBtn = document.getElementById("loginBtn");
+
+    async function login() {
+      const username = usernameEl.value.trim();
+      const password = passwordEl.value.trim();
+
+      if (!username || !password) {
+        errorEl.innerText = "Username và password không được để trống!";
+        return;
+      }
+
+      try {
+        // Gọi IPC thông qua preload (window.electronAPI)
+        const result = await window.electronAPI.login({ username, password });
+
+        if (!result.success) {
+          errorEl.innerText = result.message;
+          passwordEl.value = "";
+          setTimeout(() => passwordEl.focus(), 10);
+        } else {
+          console.log("Login thành công:", result.user.username);
+          // Có thể redirect hoặc đóng cửa sổ login
+        }
+      } catch (err) {
+        console.error("Lỗi khi login:", err);
+        errorEl.innerText = "Đã xảy ra lỗi, thử lại!";
+      }
+    }
+
+    loginBtn.addEventListener("click", login);
+
+    // Enter key submit
+    [usernameEl, passwordEl].forEach(el => {
+      el.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") login();
+      });
+    });
+
+    window.onload = () => usernameEl.focus();
+  </script>
+</body>
+</html> -->

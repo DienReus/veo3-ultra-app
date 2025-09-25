@@ -1,0 +1,70 @@
+{
+  "name": "veo3-electron-tool",
+  "version": "1.0.0",
+  "description": "Veo3 Electron Tool - Generate videos with automation",
+  "author": "Dien Nguyen",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win64": "electron-builder --win --x64",
+    "postinstall": "playwright install chromium",
+    "build": "electron-builder"
+  },
+  "dependencies": {
+    "axios": "^1.5.0",
+    "pg": "^8.16.3",
+    "playwright": "^1.55.0",
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "^38.1.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.veo3.electron.tool",
+    "productName": "Veo3 Electron Tool",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "package.json",
+      "node_modules/playwright/.local-browsers/**"
+    ],
+    "extraResources": [
+      {
+        "from": "C:/Users/admin/AppData/Local/ms-playwright/chromium-1187/chrome-win",
+        "to": "browsers",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}
