@@ -15,6 +15,7 @@ const stream = require('stream');
 const { promisify } = require('util');
 const pipeline = promisify(stream.pipeline);
 const { v4: uuidv4 } = require('uuid');
+const { Buffer } = require("buffer");
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -187,116 +188,6 @@ ipcMain.handle("login-account", async (event, { accountName }) => {
 });
 
 
-const downloadsDir = path.join(os.homedir(), "Videos", "veo3-downloads");
-if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
-
-// Hàm generate video
-async function generateVideoFlow(prompt, accountName) {
-
-    const checkFileSession = path.join(app.getPath("userData"), `${accountName}.json`);
-    if (!fs.existsSync(checkFileSession)) {
-        throw new Error(`Chưa login cho account ${accountName}`);
-    }
-
-    const chromiumPath = path.join(process.resourcesPath, "browsers", "chrome.exe");
-
-    // Launch browser mới mỗi lần
-    const browser = await chromium.launch({
-        headless: true,
-        executablePath: chromiumPath
-    });
-
-    // const browser = await chromium.launch({
-    //     headless: false
-    // });
-
-    // Tạo context mới từ storageState (file login)
-    const context = await browser.newContext({ storageState: checkFileSession });
-
-    // Tạo page mới
-    const page = await context.newPage();
-    await page.goto("https://labs.google/fx/tools/flow", { waitUntil: 'domcontentloaded' });
-
-
-    await page.getByRole('button', { name: 'add_2 New project' }).click();
-
-    // lấy số video
-    const count = getNumberVideos();
-    // Điền prompt
-    await page.getByRole('textbox', { name: 'Generate a video with text…' }).click();
-    await page.getByRole('textbox', { name: 'Generate a video with text…' }).fill(prompt);
-    await page.getByRole('button', { name: 'volume_up Veo 3 - Fast' }).click();
-    await page.getByText('Outputs per prompt2arrow_drop_down').click();
-    await page.getByRole('option', { name: count.toString() }).click();
-
-
-    // Bấm Create
-    await page.getByRole('button', { name: 'arrow_forward Create' }).click();
-
-
-    // --- Chờ nút Download xuất hiện ---
-    const downloadButtons = page.getByRole('button', { name: 'download Download' });
-    await downloadButtons.first().waitFor({ state: 'visible', timeout: 180000 });
-
-    // --- Tải từng video ---
-    try {
-        for (let i = 0; i < count; i++) {
-            try {
-                await page.waitForTimeout(10000);
-                const child = page.locator('.bZBZFo').nth(i).locator('.eJgIbK').first();
-                await child.hover();
-                const target = child.locator('.hFhuTI').first();
-                await target.click();
-                await page.getByRole('menuitem', { name: 'aspect_ratio Upscaled (1080p)' }).click();
-            } catch (err) {
-                continue;
-            }
-        }
-
-
-        const downLi = page.getByLabel('Notifications alt+T').getByText('Download');
-        await downLi.first().waitFor({ state: 'visible', timeout: 180000 });
-
-
-        let countVideo = 0;
-        while (countVideo < count) {
-            try {
-                const downloadBtn = page.getByLabel('Notifications alt+T').getByText('Download').first();
-                await downloadBtn.waitFor({ state: 'visible', timeout: 60000 });
-                const download1Promise = page.waitForEvent('download', { timeout: 120000 });
-                if (!(await downloadBtn.isVisible())) break;
-
-                // chờ sự kiện download
-                await downloadBtn.click();
-                const download = await download1Promise;
-
-                // lưu file
-                const now = new Date();
-                const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
-                const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "");
-                const fileName = `${accountName}_${dateStr}_${timeStr}.mp4`;
-                const filePath = path.join(downloadsDir, fileName);
-                await download.saveAs(filePath);
-
-                // bấm Dismiss ngay sau khi download
-                await page.getByLabel('Notifications alt+T').getByText('Dismiss').first().click();
-                countVideo++;
-            } catch (err) {
-                continue;
-            }
-        }
-
-
-    } finally {
-        await page.close();
-        await browser.close();
-    }
-
-
-}
-
-
-
 // const downloadsDir = path.join(os.homedir(), "Videos", "veo3-downloads");
 // if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
 
@@ -308,298 +199,379 @@ async function generateVideoFlow(prompt, accountName) {
 //         throw new Error(`Chưa login cho account ${accountName}`);
 //     }
 
-//     const numberVideos = getNumberVideos();
-//     const cookies = storageState.cookies;
-//     const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-//     // tạo project
-//     const bodyCreateProject = {
-//         json: {
-//             projectTitle: uuidv4(),
-//             toolName: 'PINHOLE'
-//         }
-//     };
-
-//     const resCreateProject = await axios.get('https://labs.google/fx/api/trpc/project.createProject', bodyCreateProject, {
-//         headers: {
-//             'Cookie': cookieHeader,
-//             'User-Agent': 'Mozilla/5.0',
-//             'Accept': 'application/json'
-//         }
-//     });
-
-//     if (resCreateProject.status !== 200) {
-//         throw new Error(`Lỗi tạo project trên Flow ${resCreateProject.status}`);
-//     }
-
-//     const bodyRes = resCreateProject.data;
-
-//     const projectId = bodyRes.result?.data?.json?.result?.projectId;
-
-//     // lấy access token
-//     let accessToken = "";
-//     try {
-//         const res = await axios.get('https://labs.google/fx/api/auth/session', {
-//             headers: {
-//                 'Cookie': cookieHeader,
-//                 'User-Agent': 'Mozilla/5.0',
-//                 'Accept': 'application/json'
-//             }
-//         });
-
-//         // Check status code
-//         if (res.status !== 200) {
-//             throw new Error(`API trả về status ${res.status}`);
-//         }
-
-//         const body = res.data;
-
-//         // Lấy access token
-//         accessToken = body.access_token;
-
-//         if (!accessToken) {
-//             throw new Error('Access token rỗng hoặc chưa có trong body');
-//         }
-//     } catch (err) {
-//         throw err;
-//     }
-
-
-//     // generate video
-
-//     let requests = [];
-//     let listName = [];
-//     for (let i = 0; i < numberVideos; i++) {
-//         const sceneId = uuidv4();
-//         listName.push(sceneId);
-//         requests.push({
-//             aspectRatio: "VIDEO_ASPECT_RATIO_LANDSCAPE",
-//             seed: Math.floor(Math.random() * 1e5), // seed random
-//             textInput: { prompt },
-//             videoModelKey: "veo_3_0_t2v_fast_ultra",
-//             metadata: {
-//                 sceneId: sceneId
-//             }
-//         });
-//     }
-
-//     console.log(listName);
-
-
-//     const bodyGenVideo = {
-//         clientContext: {
-//             projectId: projectId,
-//             tool: "PINHOLE",
-//             userPaygateTier: "PAYGATE_TIER_TWO"
-//         },
-//         requests
-//     };
-
-//     const resGenVideo = await axios.get('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', bodyGenVideo, {
-//         headers: {
-//             'Authorization': `Bearer ${accessToken}`,
-//             'Content-Type': 'application/json'
-//         },
-//         timeout: 60000
-//     });
-//     if (resGenVideo.status !== 200) {
-//         throw new Error(`Lỗi tạo video ${resGenVideo.status}`);
-//     }
-
-//     await sleep(60 * 1000);
-
-//     // gọi hàm  CheckAsyncVideoGenerationStatus
-//     // build request
-//     const bodyCheckGenVideo = {
-//         clientContext: {
-//             projectId: projectId,
-//             tool: "PINHOLE",
-//             userPaygateTier: "PAYGATE_TIER_TWO"
-//         },
-//         requests
-//     }
-//     let attempt = 0;
-//         const maxRetries = 3;
-//         while (attempt < maxRetries) {
-//             const resCheckGenVideo = await axios.get('https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus', bodyCheckGenVideo, {
-//         headers: {
-//             'Authorization': `Bearer ${accessToken}`,
-//             'Content-Type': 'application/json'
-//         },
-//         timeout: 60000
-//     });
-//         }
-
-// }
-
-
-
-
-// const downloadsImgDir = path.join(os.homedir(), "Pictures", "Image-FX");
-// if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
-// async function generateImageFlow(promptList, accountName) {
-//     console.log("accountName " + accountName);
-
-
-//     const checkFileSession = path.join(app.getPath("userData"), `${accountName}.json`);
-//     if (!fs.existsSync(checkFileSession)) {
-//         throw new Error(`Chưa login cho account ${accountName}`);
-//     }
-
-//     const storageState = JSON.parse(fs.readFileSync(checkFileSession, 'utf-8'));
-
 //     const chromiumPath = path.join(process.resourcesPath, "browsers", "chrome.exe");
 
-//     // tạo browser (không cần launchPersistentContext, chỉ cần launch)
-//     // const filePath = path.join(__dirname, "proxy.txt");
-//     const filePath = path.join(process.resourcesPath, "browsers", "proxy.txt");
-//     const lines = fs.readFileSync(filePath, "utf8").trim().split("\n");
-
-//     const proxies = lines.map(line => {
-//         // tách theo dấu :
-//         const [ip, port, user, pass] = line.trim().split(":");
-//         return {
-//             host: `${ip}:${port}`,
-//             user,
-//             pass
-//         };
+//     // Launch browser mới mỗi lần
+//     const browser = await chromium.launch({
+//         headless: true,
+//         executablePath: chromiumPath
 //     });
 
+//     // const browser = await chromium.launch({
+//     //     headless: false
+//     // });
 
-//     let attempt = 0;
-//     let page, browser, context;
-//     while (attempt < 5) {
-//         attempt++;
+//     // Tạo context mới từ storageState (file login)
+//     const context = await browser.newContext({ storageState: checkFileSession });
 
-//         const randomIndex = Math.floor(Math.random() * proxies.length);
-//         const { host, user, pass } = proxies[randomIndex];
-
-
-//         browser = await chromium.launch({
-//             headless: false,
-//             executablePath: chromiumPath,
-//             proxy: {
-//                 server: `http://${host}`,
-//                 username: user,
-//                 password: pass
-//             }
-//         });
-
-//         context = await browser.newContext({ storageState });
-//         page = await context.newPage();
-
-//         try {
-//             await page.goto("https://labs.google/fx/tools/image-fx", {
-//                 waitUntil: "domcontentloaded",
-//                 timeout: 120000,
-//             });
-
-//             const currentUrl = page.url();
-//             console.log("currentUrl:", currentUrl);
-
-//             if (!currentUrl.startsWith("https://labs.google/fx/tools/image-fx/unsupported-country")) {
-//                 break;
-//             }
-
-//             await browser.close();
-//             continue;
-
-//         } catch (err) {
-//             if (browser) await browser.close();
-//             continue;
-//         }
+//     // Tạo page mới
+//     const page = await context.newPage();
+//     await page.goto("https://labs.google/fx/tools/flow", { waitUntil: 'domcontentloaded' });
 
 
-//     }
+//     await page.getByRole('button', { name: 'add_2 New project' }).click();
 
-//     if (!page) {
-//         throw new Error("Không tìm được proxy hợp lệ");
-//     }
+//     // lấy số video
+//     const count = getNumberVideos();
+//     // Điền prompt
+//     await page.getByRole('textbox', { name: 'Generate a video with text…' }).click();
+//     await page.getByRole('textbox', { name: 'Generate a video with text…' }).fill(prompt);
+//     await page.getByRole('button', { name: 'volume_up Veo 3 - Fast' }).click();
+//     await page.getByText('Outputs per prompt2arrow_drop_down').click();
+//     await page.getByRole('option', { name: count.toString() }).click();
 
-//     await page.waitForTimeout(5000);
 
-//     // lap tung item
-//     for (let i = 0; i < promptList.length; i++) {
-//         const prompt = promptList[i].prompt;
-//         if (i !== 0) {
-//             await page.goto('https://labs.google/fx/tools/image-fx', {
-//                 waitUntil: 'domcontentloaded',
-//                 timeout: 120000
-//             });
-//         }
-//         try {
-//             const btn = page.locator('button[style="opacity: 1;"]');
-//             await btn.waitFor({ state: 'visible', timeout: 60000 }); // chờ tối đa 60s
-//             await btn.click();
-//             await page.getByRole('textbox').click();
-//             await page.getByRole('textbox').fill(prompt);
-//             await page.getByRole('button', { name: 'spark Create' }).click();
+//     // Bấm Create
+//     await page.getByRole('button', { name: 'arrow_forward Create' }).click();
 
-//             await page.getByRole('button', { name: 'spark Create' }).waitFor({ state: 'visible', timeout: 180000 });
 
+//     // --- Chờ nút Download xuất hiện ---
+//     const downloadButtons = page.getByRole('button', { name: 'download Download' });
+//     await downloadButtons.first().waitFor({ state: 'visible', timeout: 180000 });
+
+//     // --- Tải từng video ---
+//     try {
+//         for (let i = 0; i < count; i++) {
 //             try {
-//                 if (i === 0) {
-//                     await page.getByRole('button', { name: 'close Open the Changelog' }).click();
-//                 }
+//                 await page.waitForTimeout(10000);
+//                 const child = page.locator('.bZBZFo').nth(i).locator('.eJgIbK').first();
+//                 await child.hover();
+//                 const target = child.locator('.hFhuTI').first();
+//                 await target.click();
+//                 await page.getByRole('menuitem', { name: 'aspect_ratio Upscaled (1080p)' }).click();
 //             } catch (err) {
-//                 console.log("k tim thay close Open the Changelog");
+//                 continue;
 //             }
-
-//             await page.waitForTimeout(15000);
-
-
-
-//             try {
-//                 const downloadIndexes = [1, 2, 3, 4];
-//                 for (let j = 0; j < downloadIndexes.length; j++) {
-//                     try {
-//                         const parentDiv = page.locator(`.osSup:nth-child(${downloadIndexes[j]})`).first();
-
-//                         // Hover vào phần tử con .EhKOZ để hiện nút Download
-//                         const targetDiv = parentDiv.locator('.EhKOZ').first();
-//                         await targetDiv.hover();
-//                         await page.waitForTimeout(500); // chờ animation/overlay biến mất
-
-//                         // Chọn nút Download trong parent
-//                         const downloadButton = parentDiv.locator('button:has(span:text("Download"))').first();
-
-//                         // Bắt download native trước click
-//                         const downloadPromise = page.waitForEvent('download', { timeout: 120000 });
-
-//                         // Click trực tiếp bằng Playwright
-//                         await downloadButton.click({ timeout: 60000 });
-
-//                         // Lấy file download và lưu
-//                         const download = await downloadPromise;
-
-//                         const now = new Date();
-//                         const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ""); // yyyyMMdd
-//                         const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, ""); // HHmmss
-//                         const fileName = `${accountName}_${dateStr}_${timeStr}_${j + 1}.jpg`;
-
-//                         const filePath = path.join(downloadsImgDir, fileName);
-//                         await download.saveAs(filePath);
-//                     } catch (err) {
-//                         continue;
-//                     }
-
-//                 }
-//             } finally {
-//             }
-//         } catch (err) {
-//             continue;
-//         } finally {
 //         }
 
+
+//         const downLi = page.getByLabel('Notifications alt+T').getByText('Download');
+//         await downLi.first().waitFor({ state: 'visible', timeout: 180000 });
+
+
+//         let countVideo = 0;
+//         while (countVideo < count) {
+//             try {
+//                 const downloadBtn = page.getByLabel('Notifications alt+T').getByText('Download').first();
+//                 await downloadBtn.waitFor({ state: 'visible', timeout: 60000 });
+//                 const download1Promise = page.waitForEvent('download', { timeout: 120000 });
+//                 if (!(await downloadBtn.isVisible())) break;
+
+//                 // chờ sự kiện download
+//                 await downloadBtn.click();
+//                 const download = await download1Promise;
+
+//                 // lưu file
+//                 const now = new Date();
+//                 const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+//                 const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "");
+//                 const fileName = `${accountName}_${dateStr}_${timeStr}.mp4`;
+//                 const filePath = path.join(downloadsDir, fileName);
+//                 await download.saveAs(filePath);
+
+//                 // bấm Dismiss ngay sau khi download
+//                 await page.getByLabel('Notifications alt+T').getByText('Dismiss').first().click();
+//                 countVideo++;
+//             } catch (err) {
+//                 continue;
+//             }
+//         }
+
+
+//     } finally {
+//         await page.close();
+//         await browser.close();
 //     }
 
-//     await page.close();
-//     await browser.close();
+
 // }
+
+
+
+const downloadsVideoDir = path.join(os.homedir(), "Videos", "veo3-downloads");
+if (!fs.existsSync(downloadsVideoDir)) fs.mkdirSync(downloadsVideoDir);
+
+// Hàm generate video
+async function generateVideoFlow(prompt, accountName) {
+
+    const checkFileSession = path.join(app.getPath("userData"), `${accountName}.json`);
+    if (!fs.existsSync(checkFileSession)) {
+        throw new Error(`Chưa login cho account ${accountName}`);
+    }
+
+    const numberVideos = getNumberVideos();
+    const storageState = JSON.parse(fs.readFileSync(checkFileSession, 'utf-8'));
+    const cookies = storageState.cookies;
+    const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    const configURLPath = path.join(process.resourcesPath, "browsers", "fileUrl.json");
+    // const configURLPath = path.join(__dirname, "fileUrl.json");
+    let config = {};
+    try {
+        const content = fs.readFileSync(configURLPath, 'utf-8');
+        config = JSON.parse(content);
+
+    } catch (err) {
+        throw new Error(`Lỗi đọc file ` + configURLPath + ` === err: ` + err);
+    }
+    // tạo project
+    const bodyCreateProject = {
+        json: {
+            projectTitle: uuidv4(),
+            toolName: 'PINHOLE'
+        }
+    };
+    console.log(bodyCreateProject);
+
+
+    const resCreateProject = await axios.post(config.urlCreateProject, bodyCreateProject, {
+        headers: {
+            'Cookie': cookieHeader,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (resCreateProject.status !== 200) {
+        throw new Error(`Lỗi tạo project trên Flow ${resCreateProject.status}`);
+    }
+
+    const bodyRes = resCreateProject.data;
+
+    const projectId = bodyRes.result?.data?.json?.result?.projectId;
+
+    // lấy access token
+    let accessToken = "";
+    try {
+        const res = await axios.get(config.urlGetSession, {
+            headers: {
+                'Cookie': cookieHeader,
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'application/json'
+            }
+        });
+
+        // Check status code
+        if (res.status !== 200) {
+            throw new Error(`API trả về status ${res.status}`);
+        }
+
+        const body = res.data;
+
+        // Lấy access token
+        accessToken = body.access_token;
+
+        if (!accessToken) {
+            throw new Error('Access token rỗng hoặc chưa có trong body');
+        }
+    } catch (err) {
+        throw err;
+    }
+
+
+    // generate video
+
+    let requests = [];
+    let listName = [];
+    for (let i = 0; i < numberVideos; i++) {
+        const sceneId = uuidv4();
+        listName.push(sceneId);
+        requests.push({
+            aspectRatio: "VIDEO_ASPECT_RATIO_LANDSCAPE",
+            seed: Math.floor(Math.random() * 1e5), // seed random
+            textInput: { prompt },
+            videoModelKey: "veo_3_0_t2v_fast_ultra",
+            metadata: {
+                sceneId: sceneId
+            }
+        });
+    }
+
+
+    const bodyGenVideo = {
+        clientContext: {
+            projectId: projectId,
+            tool: "PINHOLE",
+            userPaygateTier: "PAYGATE_TIER_TWO"
+        },
+        requests
+    };
+
+    const startTime = Date.now();
+    console.log(startTime);
+
+
+    const resGenVideo = await axios.post(config.urlGenerateVideo, bodyGenVideo, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+        },
+        timeout: 60000
+    });
+    if (resGenVideo.status !== 200) {
+        throw new Error(`Lỗi tạo video ${resGenVideo.status}`);
+    }
+
+    // gọi hàm  CheckAsyncVideoGenerationStatus
+    // build request
+    let attempt = 0;
+    const maxRetries = 5;
+    const bodyCheckStatus = resGenVideo.data;
+    delete bodyCheckStatus.remainingCredits;
+    let resCheckGenVideo = '';
+    while (true) {
+        resCheckGenVideo = await axios.post(config.urlCheckVideoStatus, bodyCheckStatus, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 60000
+        });
+        if (resCheckGenVideo.status !== 200) {
+            // attempt++;
+            continue;
+        }
+        let countVideoSuccess = 0;
+        for (const op of resCheckGenVideo.data.operations) {
+            if (op.status === "MEDIA_GENERATION_STATUS_SUCCESSFUL") {
+                countVideoSuccess++;
+            }
+        }
+        if (countVideoSuccess === numberVideos) {
+            break;
+        }
+        await sleep(15 * 1000);
+    }
+
+    let upsampleResults = [];
+    for (const op of resCheckGenVideo.data.operations) {
+        console.log("start upscale video ===");
+
+        const bodyUpsampleVideo = {
+            clientContext: {
+                sessionId: String(Date.now())
+            },
+            requests: [
+                {
+                    aspectRatio: "VIDEO_ASPECT_RATIO_LANDSCAPE",
+                    seed: 18527,
+                    videoInput: {
+                        mediaId: op.mediaGenerationId
+                    },
+                    videoModelKey: "veo_2_1080p_upsampler_8s",
+                    metadata: {
+                        sceneId: op.sceneId
+                    }
+                }
+            ]
+        };
+        const resUpsampleVideo = await axios.post(config.urlUpscaleVideo, bodyUpsampleVideo, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 60000
+        });
+
+        if (resUpsampleVideo.status !== 200) {
+            continue;
+        }
+        let resVIP = resUpsampleVideo.data;
+        delete resVIP.remainingCredits;
+        upsampleResults.push(resVIP);
+
+
+        console.log("end upscale video ===");
+    }
+
+    let rawVideo1080 = [];
+    let successSet = new Set();
+    while (true) {
+        for (const result of upsampleResults) {
+            let resCheckGenVideo2 = await axios.post(
+                config.urlCheckVideoStatus,
+                result,
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json"
+                    },
+                    timeout: 60000
+                }
+            );
+
+            if (resCheckGenVideo2.status !== 200) {
+                continue;
+            }
+
+            for (const op of resCheckGenVideo2.data.operations) {
+                if (op.status === "MEDIA_GENERATION_STATUS_SUCCESSFUL" && op.rawBytes) {
+                    if (!successSet.has(op.mediaGenerationId)) {
+                        successSet.add(op.mediaGenerationId);
+                        rawVideo1080.push(op.rawBytes);
+                    }
+                }
+            }
+        }
+
+        if (successSet.size === numberVideos) {
+            break;
+        }
+
+        await sleep(15 * 1000);
+    }
+
+    // Lưu tất cả video
+    for (const [index, video] of rawVideo1080.entries()) {
+        await saveBase64ToFile(video, index + 1, accountName);
+    }
+
+}
+
+async function saveBase64ToFile(base64String, index = 1, accountName) {
+    return new Promise((resolve, reject) => {
+        // Đảm bảo thư mục tồn tại
+        if (!fs.existsSync(downloadsVideoDir)) {
+            fs.mkdirSync(downloadsVideoDir, { recursive: true });
+        }
+
+        // Đặt tên file có đuôi .mp4
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+        const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "");
+        const fileName = `${accountName}_${dateStr}_${timeStr}_${index}.mp4`;
+        const filePath = path.join(downloadsVideoDir, fileName);
+        const writeStream = fs.createWriteStream(filePath);
+
+        // Chia nhỏ base64 để tránh ngốn RAM
+        const chunkSize = 1024 * 1024; // 1MB
+        for (let i = 0; i < base64String.length; i += chunkSize) {
+            const chunk = base64String.slice(i, i + chunkSize);
+            const buffer = Buffer.from(chunk, "base64");
+            writeStream.write(buffer);
+        }
+
+        writeStream.end();
+
+        writeStream.on("finish", () => {
+            resolve(filePath);
+        });
+        writeStream.on("error", reject);
+    });
+}
 
 
 const downloadsImgDir = path.join(os.homedir(), "Pictures", "Image-FX");
-if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
+if (!fs.existsSync(downloadsImgDir)) fs.mkdirSync(downloadsImgDir);
 async function generateImageFlow(prompt, accountName) {
     const checkFileSession = path.join(app.getPath("userData"), `${accountName}.json`);
     if (!fs.existsSync(checkFileSession)) {
@@ -1052,3 +1024,6 @@ ipcMain.handle("deleteUser", async (event, { id }) => {
     return { success: true };
 });
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}

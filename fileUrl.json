@@ -1,4 +1,8 @@
 {
   "urlImageFX": "https://aisandbox-pa.googleapis.com/v1:runImageFx",
-  "urlGetSession": "https://labs.google/fx/api/auth/session"
+  "urlGetSession": "https://labs.google/fx/api/auth/session",
+  "urlCreateProject": "https://labs.google/fx/api/trpc/project.createProject",
+  "urlGenerateVideo" : "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText",
+  "urlCheckVideoStatus": "https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus",
+  "urlUpscaleVideo": "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoUpsampleVideo"
 }
