@@ -623,6 +623,7 @@ async function generateImageFlow(prompt, accountName) {
 
 
     const urlImageFX = config.urlImageFX;
+    const modelNameType = config.modelNameType;
 
 
     // cho rety 3 lần
@@ -641,7 +642,7 @@ async function generateImageFlow(prompt, accountName) {
                     tool: "IMAGE_FX"
                 },
                 modelInput: {
-                    modelNameType: "IMAGEN_3_1"
+                    modelNameType: modelNameType
                 },
                 aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE"
             };
